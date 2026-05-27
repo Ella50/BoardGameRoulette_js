@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Társasjáték Rulett</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #FFF8F0;
+      --card: #ffffff;
+      --text: #2D2A3E;
+      --muted: #7A7890;
+      --purple: #7F77DD;
+      --purple-dark: #534AB7;
+      --coral: #D85A30;
+      --green: #1D9E75;
+      --pink: #D4537E;
+      --yellow: #BA7517;
+    }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 4rem;
+      background-image:
+        radial-gradient(circle at 10% 15%, rgba(127,119,221,.12) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(212,83,126,.10) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, rgba(29,158,117,.07) 0%, transparent 60%);
+    }
+
+    header { text-align: center; margin-bottom: 2rem; }
+    header h1 {
+      font-family: 'Fredoka One', cursive;
+      font-size: clamp(2rem, 6vw, 3rem);
+      color: var(--purple);
+      letter-spacing: 1px;
+      line-height: 1.1;
+    }
+    header p { font-size: 1rem; color: var(--muted); margin-top: 6px; }
+
+    .main-card {
+      background: var(--card);
+      border-radius: 24px;
+      padding: 2rem;
+      box-shadow: 0 8px 32px rgba(127,119,221,.13), 0 2px 8px rgba(0,0,0,.05);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.25rem;
+      width: 100%;
+      max-width: 440px;
+    }
+
+    /* Filters */
+    .filter-bar {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px 16px;
+      background: #faf9ff;
+      border-radius: 16px;
+      border: 1.5px solid #e8e5f8;
+    }
+
+    .filter-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .filter-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      white-space: nowrap;
+      min-width: 110px;
+    }
+
+    .player-slider {
+      flex: 1;
+      accent-color: var(--purple);
+      cursor: pointer;
+      height: 4px;
+    }
+
+    .player-val {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.1rem;
+      color: var(--purple);
+      min-width: 28px;
+      text-align: center;
+    }
+
+    /* Custom checkbox */
+    .check-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      user-select: none;
+    }
+
+    .check-label input[type=checkbox] { display: none; }
+
+    .check-box {
+      width: 20px; height: 20px;
+      border-radius: 6px;
+      border: 2px solid #d8d5f8;
+      background: #fff;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s, border-color .15s;
+      flex-shrink: 0;
+    }
+
+    .check-label input:checked + .check-box {
+      background: var(--purple);
+      border-color: var(--purple);
+    }
+
+    .check-box::after {
+      content: '';
+      width: 10px; height: 6px;
+      border-left: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+      transform: rotate(-45deg) translateY(-1px);
+      opacity: 0;
+      transition: opacity .1s;
+    }
+
+    .check-label input:checked + .check-box::after { opacity: 1; }
+
+    .filter-count {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--muted);
+      background: #f0eeff;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-weight: 200;
+    }
+
+    .filter-count.warn {
+      background: #fff0ec;
+      color: var(--coral);
+    }
+
+    /* Wheel */
+    .wheel-wrap {
+      position: relative;
+      width: 320px;
+      height: 320px;
+    }
+
+    #canvas {
+      border-radius: 50%;
+      display: block;
+      filter: drop-shadow(0 6px 20px rgba(0,0,0,.15));
+    }
+
+    .pointer {
+      position: absolute;
+      top: -16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0; height: 0;
+      border-left: 12px solid transparent;
+      border-right: 12px solid transparent;
+      border-top: 28px solid var(--coral);
+      filter: drop-shadow(0 2px 4px rgba(216,90,48,.4));
+      z-index: 10;
+    }
+
+    .no-games-msg {
+      width: 320px; height: 320px;
+      border-radius: 50%;
+      background: #f0eeff;
+      border: 3px dashed #d8d5f8;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column;
+      gap: 8px;
+      text-align: center;
+      padding: 2rem;
+    }
+    .no-games-msg span:first-child { font-size: 2.5rem; }
+    .no-games-msg span:last-child { font-size: 14px; font-weight: 200; color: var(--muted); }
+
+    #spin-btn {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.25rem;
+      letter-spacing: 1px;
+      padding: 14px 48px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--purple) 0%, var(--purple-dark) 100%);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      transition: transform .15s, box-shadow .15s;
+      box-shadow: 0 4px 16px rgba(127,119,221,.4);
+    }
+    #spin-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(127,119,221,.5); }
+    #spin-btn:active { transform: scale(0.97); }
+    #spin-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    #result-box {
+      min-height: 64px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    #result-label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 400;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    #result-name {
+      font-family: 'Fredoka One', cursive;
+      font-size: 2rem;
+      color: var(--purple);
+      text-align: center;
+    }
+
+    .edit-toggle {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: 'Nunito', sans-serif;
+      font-size: 13px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      transition: background .15s, color .15s;
+    }
+    .edit-toggle:hover { background: #f0eeff; color: var(--purple); }
+
+    /* Edit section */
+    .edit-section {
+      width: 100%;
+      max-width: 440px;
+      background: var(--card);
+      border-radius: 24px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 16px rgba(0,0,0,.06);
+      margin-top: 1rem;
+      display: none;
+    }
+
+    .edit-section h2 {
+      font-family: 'Fredoka One', cursive;
+      font-size: 1.1rem;
+      color: var(--text);
+      margin-bottom: 1rem;
+    }
+
+    .game-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 8px 5px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #f0eeff;
+      color: var(--purple-dark);
+      border: 1.5px solid #d8d5f8;
+    }
+
+    .chip.is-card {
+      background: #fff0f6;
+      color: #993356;
+      border-color: #f4c0d1;
+    }
+
+    .chip-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.08);
+    }
+
+    .chip-del {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: rgba(0,0,0,.25);
+      font-size: 15px;
+      line-height: 1;
+      padding: 0 2px;
+      transition: color .1s;
+    }
+    .chip-del:hover { color: var(--coral); }
+
+    .add-form {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .add-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .add-row input[type=text] {
+      flex: 1;
+      font-family: 'Nunito', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 9px 14px;
+      border-radius: 12px;
+      border: 1.5px solid #d8d5f8;
+      background: #fafafa;
+      color: var(--text);
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .add-row input[type=text]:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(127,119,221,.15); }
+
+    .add-options {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .add-options label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .add-options input[type=number] {
+      width: 56px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 10px;
+      border: 1.5px solid #d8d5f8;
+      background: #fafafa;
+      color: var(--text);
+      outline: none;
+      text-align: center;
+    }
+    .add-options input[type=number]:focus { border-color: var(--purple); }
+
+    .add-row button {
+      font-family: 'Fredoka One', cursive;
+      font-size: 15px;
+      padding: 9px 20px;
+      border-radius: 12px;
+      background: var(--purple);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+      white-space: nowrap;
+    }
+    .add-row button:hover { background: var(--purple-dark); }
+    .add-row button:active { transform: scale(0.97); }
+
+    
+
+    @keyframes pop-in {
+      0% { transform: scale(0.7); opacity: 0; }
+      70% { transform: scale(1.08); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .pop { animation: pop-in .4s cubic-bezier(.34,1.56,.64,1) both; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Társasjáték Rulett</h1>
+</header>
+
+<div class="main-card">
+
+  <!-- Filters -->
+  <div class="filter-bar">
+    <div class="filter-row">
+      <span class="filter-label">Játékosok:</span>
+      <input type="range" class="player-slider" id="player-slider" min="1" max="8" value="4" step="1" oninput="onSlider()">
+      <span class="player-val" id="player-val">4</span>
+    </div>
+    <div class="filter-row">
+      <label class="check-label">
+        <input type="checkbox" id="hide-card" onchange="applyFilters()">
+        <span class="check-box"></span>
+        Kártyajátékok elrejtése
+      </label>
+      <span class="filter-count" id="filter-count">8 játék</span>
+    </div>
+  </div>
+
+  <!-- Wheel -->
+  <div class="wheel-wrap" id="wheel-wrap">
+    <div class="pointer" id="pointer"></div>
+    <canvas id="canvas" width="320" height="320"></canvas>
+  </div>
+
+  <button id="spin-btn" onclick="spin()"> Pörgetés</button>
+
+  <div id="result-box">
+    <span id="result-label" style="display:none">Eredmény:</span>
+    <span id="result-name"></span>
+  </div>
+
+  <button class="edit-toggle" onclick="toggleEdit()">Szerkesztés</button>
+</div>
+
+<!-- Edit section -->
+<div class="edit-section" id="edit-section">
+  <h2>Játékok listája</h2>
+  <div class="game-list" id="game-list"></div>
+  <div class="add-form">
+    <div class="add-options">
+      <label for="new-min">Min. játékos:</label>
+      <input type="number" id="new-min" min="1" max="10" value="2">
+      <label for="new-max">Max.:</label>
+      <input type="number" id="new-max" min="1" max="20" value="6">
+      <label class="check-label" style="margin-left:4px">
+        <input type="checkbox" id="new-is-card">
+        <span class="check-box"></span>
+        <span style="font-size:13px">Kártyajáték</span>
+      </label>
+    </div>
+    <div class="add-row">
+      <input type="text" id="new-game" placeholder="Új játék neve..." maxlength="30"
+        onkeydown="if(event.key==='Enter') addGame()">
+      <button onclick="addGame()">+ Hozzáad</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+const COLORS = [
+  '#7F77DD','#1D9E75','#D85A30','#D4537E',
+  '#378ADD','#BA7517','#639922','#0F6E56',
+  '#993C1D','#185FA5','#3B6D11','#854F0B'
+];
+
+let allGames = [
+    { name: 'Kocsma póker',          min: 2, max: 100, card: true  },
+    { name: 'Römi',          min: 2, max: 100, card: true  },
+    { name: 'Dutch',          min: 2, max: 100, card: true  },
+
+    { name: 'Solo',          min: 2, max: 100, card: true  },
+
+    { name: 'Claim',          min: 2, max: 2, card: false  },
+    { name: 'Burgenland',          min: 2, max: 2, card: false  },
+    { name: 'Labirintus',          min: 2, max: 2, card: true  },
+    { name: 'Catan telepesei',          min: 3, max: 4, card: false },
+    { name: '7 csoda',      min: 2, max: 7, card: false },
+    { name: 'Endevaour',      min: 2, max: 5, card: false },
+    { name: 'Aranyásók',      min: 4, max: 10, card: false },
+    { name: 'Erdő',      min: 2, max: 100, card: false },
+    { name: 'Alhambra',      min: 2, max: 5, card: false },
+    { name: 'Királyi Kombó',      min: 2, max: 6, card: false },
+    { name: 'Hősök kívűl tágasabb',      min: 2, max: 5, card: false },
+    { name: 'Carcassone',      min: 2, max: 5, card: false },
+    { name: 'Tibet',      min: 2, max: 6, card: false },
+    { name: 'Druida',      min: 2, max: 6, card: false },
+    { name: 'Imhotep',      min: 2, max: 5, card: false },
+    { name: 'Ezüst tó kincsei',      min: 2, max: 6, card: false },
+    { name: 'Tick Tack Bumm',      min: 2, max: 100, card: false },
+    { name: 'A macskák szigete',      min: 2, max: 5, card: false },
+    { name: 'Világvárosok',      min: 2, max: 5, card: false },
+    { name: 'Splendor',      min: 2, max: 5, card: false },
+    { name: 'Blanko',      min: 2, max: 100, card: false },
+    { name: 'Betűtorony',      min: 2, max: 100, card: false },
+    { name: 'Imagine',      min: 2, max: 100, card: false },
+    { name: 'Cortex',      min: 2, max: 100, card: false },
+    { name: 'Homemade kalózos',      min: 2, max: 5, card: false },
+    { name: 'Fröccs',      min: 2, max: 7, card: false },
+
+];
+
+let filtered = [];
+let angle = 0, spinning = false;
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const CX = 160, CY = 160, R = 150;
+
+function getFilters() {
+  return {
+    players: parseInt(document.getElementById('player-slider').value),
+    hideCard: document.getElementById('hide-card').checked
+  };
+}
+
+function applyFilters() {
+  const { players, hideCard } = getFilters();
+  filtered = allGames.filter(g => {
+    if (hideCard && g.card) return false;
+    if (players < g.min || players > g.max) return false;
+    return true;
+  });
+
+  const cnt = document.getElementById('filter-count');
+  cnt.textContent = filtered.length + ' játék';
+  cnt.className = 'filter-count' + (filtered.length === 0 ? ' warn' : '');
+
+  const btn = document.getElementById('spin-btn');
+  btn.disabled = filtered.length < 2;
+
+  document.getElementById('result-label').style.display = 'none';
+  document.getElementById('result-name').textContent = '';
+
+  drawWheel();
+}
+
+function onSlider() {
+  document.getElementById('player-val').textContent = document.getElementById('player-slider').value;
+  applyFilters();
+}
+
+function drawWheel() {
+  ctx.clearRect(0, 0, 320, 320);
+
+  const wrap = document.getElementById('wheel-wrap');
+  const noMsg = wrap.querySelector('.no-games-msg');
+
+  if (filtered.length < 2) {
+    canvas.style.display = 'none';
+    document.getElementById('pointer').style.display = 'none';
+    if (!noMsg) {
+      const d = document.createElement('div');
+      d.className = 'no-games-msg';
+      d.innerHTML = '<span>Nincs elég játék a szűrőkkel</span>';
+      wrap.appendChild(d);
+    }
+    return;
+  }
+
+  canvas.style.display = 'block';
+  document.getElementById('pointer').style.display = 'block';
+  if (noMsg) noMsg.remove();
+
+  const n = filtered.length;
+  const arc = (2 * Math.PI) / n;
+  filtered.forEach((g, i) => {
+    const start = angle + i * arc - Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(CX, CY);
+    ctx.arc(CX, CY, R, start, start + arc);
+    ctx.fillStyle = COLORS[i % COLORS.length];
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(CX, CY);
+    ctx.rotate(start + arc / 2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#fff';
+    const fs = g.name.length > 14 ? 10 : g.name.length > 9 ? 12 : 14;
+    ctx.font = `700 ${fs}px 'Nunito', sans-serif`;
+    ctx.shadowColor = 'rgba(0,0,0,.2)';
+    ctx.shadowBlur = 3;
+    ctx.fillText(g.name, R - 10, 5);
+    ctx.restore();
+  });
+
+  ctx.beginPath();
+  ctx.arc(CX, CY, 20, 0, 2 * Math.PI);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,.1)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function spin() {
+  if (spinning || filtered.length < 2) return;
+  spinning = true;
+  document.getElementById('spin-btn').disabled = true;
+  document.getElementById('result-label').style.display = 'none';
+  document.getElementById('result-name').textContent = '';
+  document.getElementById('result-name').classList.remove('pop');
+
+  const extraSpins = (6 + Math.floor(Math.random() * 4)) * 2 * Math.PI;
+  const n = filtered.length;
+  const arc = (2 * Math.PI) / n;
+  const targetSlice = Math.floor(Math.random() * n);
+  const targetAngle = extraSpins + targetSlice * arc;
+  const duration = 3800 + Math.random() * 700;
+  const startTime = performance.now();
+  const startAngle = angle;
+
+  function animate(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - t, 4);
+    angle = startAngle + targetAngle * ease;
+    drawWheel();
+    if (t < 1) { requestAnimationFrame(animate); return; }
+
+    angle = startAngle + targetAngle;
+    spinning = false;
+    document.getElementById('spin-btn').disabled = false;
+
+    const norm = (((-angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI));
+    const idx = Math.floor(norm / arc) % n;
+
+    document.getElementById('result-label').style.display = 'block';
+    const rn = document.getElementById('result-name');
+    rn.textContent = filtered[idx].name;
+    void rn.offsetWidth;
+    rn.classList.add('pop');
+  }
+  requestAnimationFrame(animate);
+}
+
+function renderChips() {
+  const list = document.getElementById('game-list');
+  list.innerHTML = '';
+  allGames.forEach((g, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (g.card ? ' is-card' : '');
+    chip.innerHTML =
+      `<span>${g.name}</span>` +
+      `<span class="chip-badge">${g.min}–${g.max}</span>` +
+      `<button class="chip-del" onclick="removeGame(${i})" title="Törlés">×</button>`;
+    list.appendChild(chip);
+  });
+}
+
+function removeGame(i) {
+  if (allGames.length <= 2) return;
+  allGames.splice(i, 1);
+  renderChips();
+  applyFilters();
+}
+
+function addGame() {
+  const inp = document.getElementById('new-game');
+  const val = inp.value.trim();
+  if (!val || allGames.find(g => g.name === val)) return;
+  const minV = parseInt(document.getElementById('new-min').value) || 2;
+  const maxV = parseInt(document.getElementById('new-max').value) || 6;
+  const isCard = document.getElementById('new-is-card').checked;
+  allGames.push({ name: val, min: Math.min(minV, maxV), max: Math.max(minV, maxV), card: isCard });
+  inp.value = '';
+  document.getElementById('new-is-card').checked = false;
+  renderChips();
+  applyFilters();
+}
+
+function toggleEdit() {
+  const s = document.getElementById('edit-section');
+  const open = s.style.display === 'block';
+  s.style.display = open ? 'none' : 'block';
+  if (!open) renderChips();
+}
+
+applyFilters();
+</script>
+</body>
+</html>
